@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
+import { sessionMiddleware } from './middleware/session.js'
 import 'dotenv/config'
 
 import { pool } from './db.js'
@@ -17,6 +18,7 @@ app.get('/health/db', async (c) => {
 })
 
 app.route('/webauthn', webauthnRouter)
+app.use('/webauthn/*', sessionMiddleware)
 
 serve({
   fetch: app.fetch,
