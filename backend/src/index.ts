@@ -1,24 +1,6 @@
 import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
-import { sessionMiddleware } from './middleware/session.js'
 import 'dotenv/config'
-
-import { pool } from './db.js'
-import { webauthnRouter } from './routes/webauthn.js'
-
-const app = new Hono()
-
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
-})
-
-app.get('/health/db', async (c) => {
-  const result = await pool.query('SELECT 1 AS ok')
-  return c.json({ ok: result.rows[0].ok === 1})
-})
-
-app.route('/webauthn', webauthnRouter)
-app.use('/webauthn/*', sessionMiddleware)
+import { app } from './app.js'
 
 serve({
   fetch: app.fetch,
