@@ -31,7 +31,7 @@ export const challengeRepository = {
     await redis.set(
       keyOf(input.sessionId, input.purpose),
       JSON.stringify(record),
-      { EX: TTL_SECONDS}
+      { EX: TTL_SECONDS }
     )
     return record
   },
