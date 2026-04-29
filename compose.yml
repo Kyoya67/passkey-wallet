@@ -11,5 +11,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  redis:
+    image: redis:8
+    container_name: passkey-wallet-redis
+    ports:
+      - "6379:6379"
+
 volumes:
   pgdata:
