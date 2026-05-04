@@ -11,6 +11,7 @@ import type { WebAuthnCredential } from '@simplewebauthn/server'
 import { isoBase64URL } from '@simplewebauthn/server/helpers'
 
 import { challengeRepository } from '../repositories/challenge.js'
+import { register } from 'module'
 
 const expectedOrigin = 'https://localhost:3000'
 const expectedRPID = 'localhost'
@@ -23,8 +24,8 @@ export type RegistrationOptionsInput = {
 }
 
 type VerifyRegistrationInput = {
+  sessionId: string
   registrationResponse: RegistrationResponseJSON
-  expectedChallenge: string
 }
 
 export const webAuthnService = {
@@ -39,6 +40,7 @@ export const webAuthnService = {
 
         await challengeRepository.upsert({
             sessionId,
+            userId: options.user.id,
             challenge: options.challenge,
             purpose: 'registration',
         })
@@ -46,7 +48,15 @@ export const webAuthnService = {
         return options;
     },
 
-    async verifyRegistrationResponse({ registrationResponse, expectedChallenge }: VerifyRegistrationInput) {
+    async verifyRegistrationResponse({ sessionId, registrationResponse }: VerifyRegistrationInput) {
+        const record = await challengeRepository.findBySessionId(sessionId, 'registration');
+
+        if (!record) {
+            throw new Error('challenge not found')
+        }
+
+        const { challenge: expectedChallenge, userId } = record;
+
         const verification = await verifyRegistrationResponse({
             response: registrationResponse,
             expectedChallenge,
@@ -62,7 +72,7 @@ export const webAuthnService = {
 
         const { 
             credential, 
-            userVerified, 
+            userVerified,
             aaguid, 
             credentialDeviceType 
         }: {
@@ -77,10 +87,19 @@ export const webAuthnService = {
 
         const synced = (credentialDeviceType === 'multiDevice');
 
-        const { user } = 
-        return {
+        if (!userVerified) {
+            throw new Error('User verification failed.')
+        }
+
+        const cred ={
             credentialId: credential.id,
-            
+            publicKey: base64Publickey,
+            aaguid,
+            deviceType: credentialDeviceType,
+            synced,
+            registeredAt: new Date(),
+            last_usedAt: null,
+            userId,
         }
     }
 }

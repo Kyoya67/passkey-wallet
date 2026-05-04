@@ -27,16 +27,15 @@ webauthnRouter.get('/registerRequest', async (c) => {
 })
 
 webauthnRouter.post('/registerResponse', async (c) => {
-  const registrationResponse = await c.req.json<RegistrationResponseJSON>();
-  const expectedChallenge = c.get('sessionId');
-
-  if (!expectedChallenge) {
-    return c.json({ error: 'challenge not found' }, 400)
+  const sessionId = c.get('sessionId')
+  if (!sessionId) {
+    return c.json({ error: 'Session not found' }, 400)
   }
+  const registrationResponse = await c.req.json<RegistrationResponseJSON>();
 
   const result = await webAuthnService.verifyRegistrationResponse({
+    sessionId,
     registrationResponse,
-    expectedChallenge,
   })
 
   return c.json({ status: 'success', result })
