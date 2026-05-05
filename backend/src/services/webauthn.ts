@@ -11,7 +11,6 @@ import type { WebAuthnCredential } from '@simplewebauthn/server'
 import { isoBase64URL } from '@simplewebauthn/server/helpers'
 
 import { challengeRepository } from '../repositories/challenge.js'
-import { register } from 'module'
 
 const expectedOrigin = 'https://localhost:3000'
 const expectedRPID = 'localhost'

@@ -24,8 +24,16 @@ test('registerRequest sets session cookie and stores challenge', async () => {
   const setCookie = response.headers.get('set-cookie')
   const sessionId = extractSessionId(setCookie)
 
-  const body = await response.json() as { challenge: string }
+  const body = await response.json() as {
+    challenge: string
+    user: { id: string; name: string; displayName: string }
+  }
   assert.equal(typeof body.challenge, 'string')
+  assert.equal(typeof body.user.id, 'string')
+  assert.equal(body.user.name, 'alice')
+  assert.equal(body.user.displayName, '')
+  assert.notEqual(body.user.id, '')
+  console.log('userId', body.user.id)
 
   const record = await challengeRepository.findBySessionId(sessionId)
   assert.ok(record)
