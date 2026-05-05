@@ -11,6 +11,7 @@ import type { WebAuthnCredential } from '@simplewebauthn/server'
 import { isoBase64URL } from '@simplewebauthn/server/helpers'
 
 import { challengeRepository } from '../repositories/challenge.js'
+import { credentialRepository } from '../repositories/credential.js'
 
 const expectedOrigin = 'https://localhost:3000'
 const expectedRPID = 'localhost'
@@ -97,9 +98,14 @@ export const webAuthnService = {
             deviceType: credentialDeviceType,
             synced,
             registeredAt: new Date(),
-            last_usedAt: null,
+            lastUsedAt: null,
             userId,
         }
+
+        const savedCredential = await credentialRepository.create(cred)
+
+        await challengeRepository.deleteBySessionId(sessionId, 'registration')
+
+        return savedCredential
     }
 }
-
