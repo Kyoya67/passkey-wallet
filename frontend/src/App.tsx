@@ -1,122 +1,167 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
 
+type RegistrationOptions = {
+  challenge: string
+  rp: { name: string; id: string }
+  user: {
+    id: string
+    name: string
+    displayName: string
+  }
+  pubKeyCredParams: Array<{ alg: number; type: 'public-key' }>
+  timeout?: number
+  attestation?: 'none' | 'indirect' | 'direct' | 'enterprise'
+  excludeCredentials?: Array<{ id: string; type: 'public-key' }>
+}
+
+type RegistrationResponse = {
+  id: string
+  rawId: string
+  type: string
+  response: {
+    clientDataJSON: string
+    attestationObject: string
+  }
+}
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [userName, setUserName] = useState('alice')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    'idle'
+  )
+  const [message, setMessage] = useState('')
+
+  const registerPasskey = async () => {
+    setStatus('loading')
+    setMessage('')
+
+    try {
+      const request = await fetch(
+        `/webauthn/registerRequest?userName=${encodeURIComponent(userName)}`,
+        {
+          credentials: 'include',
+        }
+      )
+
+      if (!request.ok) {
+        throw new Error('registerRequest failed')
+      }
+
+      const options = (await request.json()) as RegistrationOptions
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          ...options,
+          challenge: base64UrlToBuffer(options.challenge),
+          user: {
+            ...options.user,
+            id: base64UrlToBuffer(options.user.id),
+          },
+          excludeCredentials: (options.excludeCredentials ?? []).map((cred) => ({
+            ...cred,
+            id: base64UrlToBuffer(cred.id),
+            type: 'public-key' as const,
+          })),
+        },
+      })
+
+      if (!credential) {
+        throw new Error('credential not created')
+      }
+
+      const response = credential as PublicKeyCredential
+      const attestation = response.response as AuthenticatorAttestationResponse
+
+      const payload: RegistrationResponse = {
+        id: response.id,
+        rawId: bufferToBase64Url(new Uint8Array(response.rawId)),
+        type: response.type,
+        response: {
+          clientDataJSON: bufferToBase64Url(new Uint8Array(attestation.clientDataJSON)),
+          attestationObject: bufferToBase64Url(
+            new Uint8Array(attestation.attestationObject)
+          ),
+        },
+      }
+
+      const verify = await fetch('/webauthn/registerResponse', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!verify.ok) {
+        throw new Error('registerResponse failed')
+      }
+
+      setStatus('success')
+      setMessage(`registered as ${userName}`)
+    } catch (error) {
+      setStatus('error')
+      setMessage(error instanceof Error ? error.message : 'unknown error')
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
+    <main className="page">
+      <section className="card">
+        <p className="eyebrow">Passkey Wallet</p>
+        <h1>Register a passkey</h1>
+        <p className="description">
+          User name is up to you. This value will be sent to the backend when
+          registration starts.
+        </p>
+
+        <label className="field">
+          <span>User name</span>
+          <input
+            value={userName}
+            onChange={(event) => setUserName(event.target.value)}
+            placeholder="alice"
+            autoComplete="username"
+          />
+        </label>
+
         <button
           type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          className="primary"
+          onClick={registerPasskey}
+          disabled={status === 'loading' || userName.trim() === ''}
         >
-          Count is {count}
+          {status === 'loading' ? 'Registering...' : 'Register passkey'}
         </button>
+
+        <p className={`status status-${status}`}>Status: {status}</p>
+        {message ? <p className="message">{message}</p> : null}
       </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    </main>
   )
+}
+
+function base64UrlToBuffer(value: string) {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+
+  return bytes
+}
+
+function bufferToBase64Url(value: Uint8Array) {
+  let binary = ''
+
+  for (const byte of value) {
+    binary += String.fromCharCode(byte)
+  }
+
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 }
 
 export default App
