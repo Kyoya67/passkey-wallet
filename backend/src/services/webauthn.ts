@@ -13,7 +13,7 @@ import { isoBase64URL } from '@simplewebauthn/server/helpers'
 import { challengeRepository } from '../repositories/challenge.js'
 import { credentialRepository } from '../repositories/credential.js'
 
-const expectedOrigin = 'https://localhost:3000'
+const expectedOrigin = 'http://localhost:5173'
 const expectedRPID = 'localhost'
 
 export type RegistrationOptionsInput = {

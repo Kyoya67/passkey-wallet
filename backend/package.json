@@ -5,7 +5,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --test --import tsx test/*.test.ts"
+    "test": "node --test --import tsx test/*.test.ts",
+    "test:pg": "node --test --import tsx test/pool-query-result.test.ts",
+    "migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.14",
