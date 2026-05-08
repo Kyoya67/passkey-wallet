@@ -41,6 +41,7 @@ export const webAuthnService = {
         await challengeRepository.upsert({
             sessionId,
             userId: options.user.id,
+            userName: input.userName,
             challenge: options.challenge,
             purpose: 'registration',
         })

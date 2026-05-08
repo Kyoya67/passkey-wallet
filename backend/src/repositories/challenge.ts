@@ -5,6 +5,7 @@ export type ChallengePurpose = 'registration' | 'authentication'
 export type ChallengeRecord = {
   sessionId: string
   userId: string
+  userName: string
   challenge: string
   purpose: ChallengePurpose
   createdAt: Date
@@ -56,12 +57,14 @@ export const challengeRepository = {
   async upsert(input: {
     sessionId: string
     userId: string
+    userName: string
     challenge: string
     purpose: ChallengePurpose
   }): Promise<ChallengeRecord | null> {
     const record: ChallengeRecord = {
       sessionId: input.sessionId,
       userId: input.userId,
+      userName: input.userName,
       challenge: input.challenge,
       purpose: input.purpose,
       createdAt: new Date(),
