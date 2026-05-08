@@ -37,6 +37,11 @@ export const webAuthnService = {
             userName: input.userName,
             timeout: 300000,
             excludeCredentials: input.excludeCredentials ?? [],
+            authenticatorSelection: {
+                residentKey: 'required',
+                userVerification: 'required',
+                authenticatorAttachment: 'platform',
+            }
         })
 
         await challengeRepository.upsert({
