@@ -6,5 +6,5 @@ CREATE TABLE IF NOT EXISTS credentials (
     synced boolean NOT NULL DEFAULT false,
     registered_at timestamptz NOT NULL,
     last_used_at timestamptz NULL,
-    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE
+    user_id text NOT NULL REFERENCES users(user_id) ON DELETE CASCADE
 )
