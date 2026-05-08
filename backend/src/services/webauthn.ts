@@ -84,7 +84,7 @@ export const webAuthnService = {
             credentialDeviceType: CredentialDeviceType
         } = verification.registrationInfo
 
-        const base64Publickey =
+        const base64PublicKey =
             isoBase64URL.fromBuffer(credential.publicKey)
 
         const synced = (credentialDeviceType === 'multiDevice');
@@ -93,23 +93,28 @@ export const webAuthnService = {
             throw new Error('User verification failed.')
         }
 
-        const cred ={
-            credentialId: credential.id,
-            publicKey: base64Publickey,
-            aaguid,
-            deviceType: credentialDeviceType,
-            synced,
-            registeredAt: new Date(),
-            lastUsedAt: null,
-            userId,
+        try {
+            await usersRepository.create({
+                userId,
+                userName,
+            })
+
+            await credentialRepository.create({
+                credentialId: credential.id,
+                publicKey: base64PublicKey,
+                aaguid,
+                deviceType: credentialDeviceType,
+                synced,
+                registeredAt: new Date(),
+                lastUsedAt: null,
+                userId,
+            })
+
+            await challengeRepository.deleteBySessionId(sessionId, 'registration')
+        } catch (error) {
+            throw new Error(
+            error instanceof Error ? `registration save failed: ${error.message}` : 'registration save failed'
+            )
         }
-
-        await credentialRepository.create(cred)
-
-        await usersRepository.create({ userId, userName})
-
-        await challengeRepository.deleteBySessionId(sessionId, 'registration')
-
-        return
     }
 }

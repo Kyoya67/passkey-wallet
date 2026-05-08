@@ -9,25 +9,17 @@ export type UserRecord = {
 type UserRow = QueryResultRow & UserRecord
 
 export const usersRepository = {
-    async create(input: UserRecord) {
-        const result = await pool.query<UserRow>(
+    async create(input: UserRecord): Promise<void> {
+        await pool.query<UserRow>(
             `
                 INSERT INTO users (
                     user_id,
                     user_name
                 )
                 VALUES ($1, $2)
-                RETURNING
-                    user_id AS "userId",
-                    user_name AS "userName",
-                    created_at AS "createdAt"
             `,
             [input.userId, input.userName]
         )
-
-        if (!result.rows[0]) {
-            throw new Error('failed to insert user')
-        }
     },
 
     async findById(userId: string): Promise<UserRecord | null> {
