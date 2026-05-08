@@ -76,6 +76,17 @@
   cursor: not-allowed;
 }
 
+.buttonGroup {
+  display: grid;
+  gap: 16px;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
 .status {
   margin-top: 18px;
   font-size: 14px;

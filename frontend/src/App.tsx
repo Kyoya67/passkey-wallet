@@ -25,6 +25,26 @@ type RegistrationResponse = {
   }
 }
 
+type AuthenticationOptions = {
+  challenge: string
+  timeout?: number
+  rpId?: string
+  allowCredentials?: Array<{ id: string; type: 'public-key' }>
+  userVerification?: 'required' | 'preferred' | 'discouraged'
+}
+
+type AuthenticationResponse = {
+  id: string
+  rawId: string
+  type: string
+  response: {
+    clientDataJSON: string
+    authenticatorData: string
+    signature: string
+    userHandle?: string | null
+  }
+}
+
 function App() {
   const [userName, setUserName] = useState('alice')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
@@ -105,6 +125,79 @@ function App() {
     }
   }
 
+  const loginPasskey = async () => {
+    setStatus('loading')
+    setMessage('')
+
+    try {
+      const request = await fetch(
+        `/webauthn/authenticateRequest?userName=${encodeURIComponent(userName)}`,
+        {
+          credentials: 'include',
+        }
+      )
+
+      if (!request.ok) {
+        throw new Error('authenticateRequest failed')
+      }
+
+      const options = (await request.json()) as AuthenticationOptions
+      const credential = await navigator.credentials.get({
+        publicKey: {
+          ...options,
+          challenge: base64UrlToBuffer(options.challenge),
+          allowCredentials: (options.allowCredentials ?? []).map((cred) => ({
+            ...cred,
+            id: base64UrlToBuffer(cred.id),
+            type: 'public-key' as const,
+          })),
+        },
+      })
+
+      if (!credential) {
+        throw new Error('credential not created')
+      }
+
+      const response = credential as PublicKeyCredential
+      const assertion = response.response as AuthenticatorAssertionResponse
+
+      const payload: AuthenticationResponse = {
+        id: response.id,
+        rawId: bufferToBase64Url(new Uint8Array(response.rawId)),
+        type: response.type,
+        response: {
+          clientDataJSON: bufferToBase64Url(new Uint8Array(assertion.clientDataJSON)),
+          authenticatorData: bufferToBase64Url(
+            new Uint8Array(assertion.authenticatorData)
+          ),
+          signature: bufferToBase64Url(new Uint8Array(assertion.signature)),
+          userHandle: assertion.userHandle
+            ? bufferToBase64Url(new Uint8Array(assertion.userHandle))
+            : null,
+        },
+      }
+
+      const verify = await fetch('/webauthn/authenticateResponse', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!verify.ok) {
+        throw new Error('authenticateResponse failed')
+      }
+
+      setStatus('success')
+      setMessage(`logged in as ${userName}`)
+    } catch (error) {
+      setStatus('error')
+      setMessage(error instanceof Error ? error.message : 'unknown error')
+    }
+  }
+
   return (
     <main className="page">
       <section className="card">
@@ -125,14 +218,25 @@ function App() {
           />
         </label>
 
-        <button
-          type="button"
-          className="primary"
-          onClick={registerPasskey}
-          disabled={status === 'loading' || userName.trim() === ''}
-        >
-          {status === 'loading' ? 'Registering...' : 'Register passkey'}
-        </button>
+        <div className="buttonGroup">
+          <button
+            type="button"
+            className="primary"
+            onClick={registerPasskey}
+            disabled={status === 'loading' || userName.trim() === ''}
+          >
+            {status === 'loading' ? 'Registering...' : 'Register passkey'}
+          </button>
+
+          <button
+            type="button"
+            className="primary secondary"
+            onClick={loginPasskey}
+            disabled={status === 'loading' || userName.trim() === ''}
+          >
+            {status === 'loading' ? 'Signing in...' : 'Login with passkey'}
+          </button>
+        </div>
 
         <p className={`status status-${status}`}>Status: {status}</p>
         {message ? <p className="message">{message}</p> : null}

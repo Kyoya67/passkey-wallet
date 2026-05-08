@@ -42,7 +42,7 @@ export const webAuthnService = {
                 userVerification: 'required',
                 authenticatorAttachment: 'platform',
             },
-            preferredAuthenticatorType: 'localDevice'
+            preferredAuthenticatorType: 'localDevice',
         })
 
         await challengeRepository.upsert({
