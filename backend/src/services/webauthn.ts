@@ -12,6 +12,7 @@ import { isoBase64URL } from '@simplewebauthn/server/helpers'
 
 import { challengeRepository } from '../repositories/challenge.js'
 import { credentialRepository } from '../repositories/credential.js'
+import { usersRepository } from '../repositories/users.js'
 
 const expectedOrigin = 'http://localhost:5173'
 const expectedRPID = 'localhost'
@@ -56,7 +57,7 @@ export const webAuthnService = {
             throw new Error('challenge not found')
         }
 
-        const { challenge: expectedChallenge, userId } = record;
+        const { challenge: expectedChallenge, userId, userName } = record;
 
         const verification = await verifyRegistrationResponse({
             response: registrationResponse,
@@ -103,10 +104,12 @@ export const webAuthnService = {
             userId,
         }
 
-        const savedCredential = await credentialRepository.create(cred)
+        await credentialRepository.create(cred)
+
+        await usersRepository.create({ userId, userName})
 
         await challengeRepository.deleteBySessionId(sessionId, 'registration')
 
-        return savedCredential
+        return
     }
 }

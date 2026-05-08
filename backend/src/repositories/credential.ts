@@ -15,7 +15,7 @@ export type CredentialRecord = {
 type CredentialRow = QueryResultRow & CredentialRecord
 
 export const credentialRepository = {
-  async create(input: CredentialRecord): Promise<CredentialRecord> {
+  async create(input: CredentialRecord) {
     const result = await pool.query<CredentialRow>(
       `
         INSERT INTO credentials (
@@ -54,7 +54,5 @@ export const credentialRepository = {
     if (!result.rows[0]) {
       throw new Error('failed to insert credential')
     }
-
-    return result.rows[0]
   },
 }
