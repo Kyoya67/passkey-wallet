@@ -13,11 +13,13 @@ export type CredentialRecord = {
   lastUsedAt: Date | null
 }
 
+export type NewCredentialRecord = Omit<CredentialRecord, 'counter'>
+
 type CredentialRow = QueryResultRow & CredentialRecord
 
 export const credentialRepository = {
-  async create(input: CredentialRecord): Promise<void> {
-    await pool.query<CredentialRow>(
+  async create(input: NewCredentialRecord): Promise<void> {
+    await pool.query(
       `
         INSERT INTO credentials (
           credential_id,
@@ -48,17 +50,17 @@ export const credentialRepository = {
     const result = await pool.query<CredentialRecord>(
       `
         SELECT
-          credential_id,
-          user_id
-          public_key,
+          credential_id AS "credentialId",
+          user_id AS "userId",
+          public_key AS "publicKey",
           counter,
           aaguid,
-          device_type,
+          device_type AS "deviceType",
           synced,
-          registered_at,
-          last_used_at,
+          registered_at AS "registeredAt",
+          last_used_at AS "lastUsedAt"
         FROM credentials
-        WHERE credential_id I= $1
+        WHERE credential_id = $1
       `,
       [credentialId]
     )
