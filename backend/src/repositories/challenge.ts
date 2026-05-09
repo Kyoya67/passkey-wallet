@@ -4,11 +4,11 @@ export type ChallengePurpose = 'registration' | 'authentication'
 
 export type ChallengeRecord = {
   sessionId: string
-  userId: string
-  userName: string
+  userId?: string
+  userName?: string
   challenge: string
   purpose: ChallengePurpose
-  createdAt: Date
+  createdAt?: Date
 }
 
 const TTL_SECONDS = 300
@@ -54,23 +54,19 @@ async function getFromMemory(key: string): Promise<ChallengeRecord | null> {
 }
 
 export const challengeRepository = {
-  async upsert(input: {
-    sessionId: string
-    userId: string
-    userName: string
-    challenge: string
-    purpose: ChallengePurpose
-  }): Promise<ChallengeRecord | null> {
+  async upsert(
+    { sessionId, userId, userName, challenge, purpose }: ChallengeRecord
+  ): Promise<ChallengeRecord | null> {
     const record: ChallengeRecord = {
-      sessionId: input.sessionId,
-      userId: input.userId,
-      userName: input.userName,
-      challenge: input.challenge,
-      purpose: input.purpose,
+      sessionId,
+      userId,
+      userName,
+      challenge,
+      purpose,
       createdAt: new Date(),
     }
 
-    const key = getKey(input.sessionId, input.purpose)
+    const key = getKey(sessionId, purpose)
 
     if (!isRedisEnabled()) {
       memoryStore.set(key, {

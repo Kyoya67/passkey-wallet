@@ -22,13 +22,13 @@ export const usersRepository = {
         )
     },
 
-    async findById(userId: string): Promise<UserRecord | null> {
+    async findByUserId(userId: string): Promise<UserRecord | null> {
     const result = await pool.query<UserRow>(
       `
         SELECT
-          user_id AS "userId",
-          user_name AS "userName",
-          created_at AS "createdAt"
+          user_id,
+          user_name,
+          created_at,
         FROM users
         WHERE user_id = $1
       `,
@@ -42,9 +42,9 @@ export const usersRepository = {
     const result = await pool.query<UserRow>(
       `
         SELECT
-          user_id AS "userId",
-          user_name AS "userName",
-          created_at AS "createdAt"
+          user_id,
+          user_name,
+          created_at
         FROM users
         WHERE user_name = $1
       `,

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { Env } from '../types/env.js'
 import { webAuthnService } from '../services/webauthn.js'
 import type { RegistrationResponseJSON } from '@simplewebauthn/server'
+import type { AuthenticationResponseJSON } from '@simplewebauthn/server'
 
 export const webauthnRouter = new Hono<Env>()
 
@@ -33,10 +34,36 @@ webauthnRouter.post('/registerResponse', async (c) => {
   }
   const registrationResponse = await c.req.json<RegistrationResponseJSON>();
 
-  const result = await webAuthnService.verifyRegistrationResponse({
-    sessionId,
-    registrationResponse,
+  const result = await webAuthnService.verifyRegistrationResponse(sessionId, registrationResponse)
+
+  return c.json({ status: 'success', result })
+})
+
+webauthnRouter.get('/authenticateRequest', async (c) => {
+  const sessionId = c.get('sessionId')
+  if (!sessionId) {
+    return c.json({ error: 'Session not found' }, 400)
+  }
+
+  var allowCredentials: any[] = []
+
+  const options = await webAuthnService.generateAuthenticationOptions(sessionId, {
+    rpID,
+    allowCredentials,
+    timeout: 300000,
   })
+
+  return c.json(options)
+})
+
+webauthnRouter.post('/authenticateResponse', async (c) => {
+  const sessionId = c.get('sessionId')
+  if (!sessionId) {
+    return c.json({ error: 'Session not found' }, 400)
+  }
+  const authenticationResponse = await c.req.json<AuthenticationResponseJSON>();
+
+  const result = await webAuthnService.verifyAuthenticationResponse(sessionId, authenticationResponse)
 
   return c.json({ status: 'success', result })
 })

@@ -5,38 +5,41 @@ import {
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server'
 import type { RegistrationResponseJSON } from '@simplewebauthn/server'
-import type { CredentialDeviceType } from '@simplewebauthn/server'
-import type { WebAuthnCredential } from '@simplewebauthn/server'
+import type { AuthenticationResponseJSON } from '@simplewebauthn/server'
+import type { CredentialRecord } from '../repositories/credential.js'
+import type { UserRecord } from '../repositories/users.js'
 
 import { isoBase64URL } from '@simplewebauthn/server/helpers'
 
 import { challengeRepository } from '../repositories/challenge.js'
-import { credentialRepository } from '../repositories/credential.js'
+import { credentialRepository } from '../repositories/credential.js' 
 import { usersRepository } from '../repositories/users.js'
 
 const expectedOrigin = 'http://localhost:5173'
 const expectedRPID = 'localhost'
 
-export type RegistrationOptionsInput = {
+type RegistrationOptionsInput = {
     rpName: string,
     rpID: string,
     userName: string,
     excludeCredentials:[],
 }
 
-type VerifyRegistrationInput = {
-  sessionId: string
-  registrationResponse: RegistrationResponseJSON
+type SignInOptionsInput = {
+  rpID: string
+  allowCredentials: Array<{ id: string }>
+  timeout: number
 }
 
+
 export const webAuthnService = {
-    async generateRegistrationOptions(sessionId: string, input: RegistrationOptionsInput) {
+    async generateRegistrationOptions( sessionId: string, { rpName, rpID, userName, excludeCredentials }: RegistrationOptionsInput ) {
         const options = await generateRegistrationOptions({
-            rpName: input.rpName,
-            rpID: input.rpID,
-            userName: input.userName,
+            rpName,
+            rpID,
+            userName,
             timeout: 300000,
-            excludeCredentials: input.excludeCredentials ?? [],
+            excludeCredentials: excludeCredentials ?? [],
             authenticatorSelection: {
                 residentKey: 'required',
                 userVerification: 'required',
@@ -48,7 +51,7 @@ export const webAuthnService = {
         await challengeRepository.upsert({
             sessionId,
             userId: options.user.id,
-            userName: input.userName,
+            userName: options.user.name,
             challenge: options.challenge,
             purpose: 'registration',
         })
@@ -56,7 +59,7 @@ export const webAuthnService = {
         return options;
     },
 
-    async verifyRegistrationResponse({ sessionId, registrationResponse }: VerifyRegistrationInput) {
+    async verifyRegistrationResponse( sessionId: string, registrationResponse: RegistrationResponseJSON ) {
         const record = await challengeRepository.findBySessionId(sessionId, 'registration');
 
         if (!record) {
@@ -83,11 +86,6 @@ export const webAuthnService = {
             userVerified,
             aaguid, 
             credentialDeviceType 
-        }: {
-            credential: WebAuthnCredential
-            userVerified: boolean
-            aaguid: string
-            credentialDeviceType: CredentialDeviceType
         } = verification.registrationInfo
 
         const base64PublicKey =
@@ -107,20 +105,97 @@ export const webAuthnService = {
 
             await credentialRepository.create({
                 credentialId: credential.id,
+                userId,
                 publicKey: base64PublicKey,
                 aaguid,
                 deviceType: credentialDeviceType,
                 synced,
                 registeredAt: new Date(),
                 lastUsedAt: null,
-                userId,
             })
 
-            await challengeRepository.deleteBySessionId(sessionId, 'registration')
         } catch (error) {
             throw new Error(
-            error instanceof Error ? `registration save failed: ${error.message}` : 'registration save failed'
+                error instanceof Error ? `registration save failed: ${error.message}` : 'registration save failed'
             )
+        } finally {
+            await challengeRepository.deleteBySessionId(sessionId, 'registration')
+        }
+    },
+
+    async generateAuthenticationOptions( sessionId: string, { rpID, allowCredentials, timeout }: SignInOptionsInput) {
+        const options = await generateAuthenticationOptions({
+            rpID,
+            allowCredentials,
+            timeout,
+        })
+
+        await challengeRepository.upsert({
+            sessionId,
+            challenge: options.challenge,
+            purpose: 'authentication',
+        })
+        
+        return options;
+    },
+
+    async verifyAuthenticationResponse( sessionId: string, authenticationResponse: AuthenticationResponseJSON ) {
+        const record = await challengeRepository.findBySessionId(sessionId, 'authentication');
+
+        if (!record) {
+            throw new Error('challenge not found')
+        }
+
+        const { challenge: expectedChallenge } = record;
+
+        try {
+            const credentialFromDB: CredentialRecord | null=
+                await credentialRepository.findByCredentialId(authenticationResponse.id)
+            if (!credentialFromDB) {
+                throw new Error(
+                    'Matching credential not found on the server.'
+                )
+            }
+
+            const userFromDB: UserRecord | null=
+                await usersRepository.findByUserId(credentialFromDB.userId)
+            if (!userFromDB) {
+                throw new Error(
+                    'User not found.'
+                )
+            }
+
+            const verification = await verifyAuthenticationResponse({
+                response: authenticationResponse,
+                expectedChallenge,
+                expectedOrigin,
+                expectedRPID,
+                credential: {
+                    id: credentialFromDB.credentialId,
+                    publicKey: isoBase64URL.toBuffer(credentialFromDB.publicKey),
+                    counter: credentialFromDB.counter,
+                },
+                requireUserVerification: true
+            })
+
+            const { verified, authenticationInfo } = verification
+
+            if (!verified || !authenticationInfo) {
+                throw new Error('User verification failed.')
+            }
+
+            const { userVerified, newCounter } = authenticationInfo
+            if (!userVerified) {
+                throw new Error('User verification failed.')
+            }
+
+            await credentialRepository.update(credentialFromDB.credentialId, newCounter);
+        } catch (error) {
+            throw new Error(
+                error instanceof Error ? `authentication failed: ${error.message}` : 'authentication failed'
+            )
+        } finally {
+            await challengeRepository.deleteBySessionId(sessionId, 'authentication')
         }
     }
 }

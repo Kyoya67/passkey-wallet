@@ -1,0 +1,2 @@
+ALTER TABLE credentials
+ADD COLUMN IF NOT EXISTS counter integer NOT NULL DEFAULT 0;
