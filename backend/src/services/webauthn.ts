@@ -7,7 +7,6 @@ import {
 import type { RegistrationResponseJSON } from '@simplewebauthn/server'
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server'
 import type { CredentialRecord } from '../repositories/credential.js'
-import type { UserRecord } from '../repositories/users.js'
 
 import { isoBase64URL } from '@simplewebauthn/server/helpers'
 
@@ -48,19 +47,18 @@ export const webAuthnService = {
             preferredAuthenticatorType: 'localDevice',
         })
 
-        await challengeRepository.upsert({
+        await challengeRepository.upsertRegistration({
             sessionId,
             userId: options.user.id,
-            userName: options.user.name,
+            userName,
             challenge: options.challenge,
-            purpose: 'registration',
         })
 
         return options;
     },
 
     async verifyRegistrationResponse( sessionId: string, registrationResponse: RegistrationResponseJSON ) {
-        const record = await challengeRepository.findBySessionId(sessionId, 'registration');
+        const record = await challengeRepository.findRegistrationBySessionId(sessionId);
 
         if (!record) {
             throw new Error('challenge not found')
@@ -130,17 +128,16 @@ export const webAuthnService = {
             timeout,
         })
 
-        await challengeRepository.upsert({
+        await challengeRepository.upsertAuthentication({
             sessionId,
             challenge: options.challenge,
-            purpose: 'authentication',
         })
         
         return options;
     },
 
     async verifyAuthenticationResponse( sessionId: string, authenticationResponse: AuthenticationResponseJSON ) {
-        const record = await challengeRepository.findBySessionId(sessionId, 'authentication');
+        const record = await challengeRepository.findAuthenticationBySessionId(sessionId);
 
         if (!record) {
             throw new Error('challenge not found')
@@ -154,14 +151,6 @@ export const webAuthnService = {
             if (!credentialFromDB) {
                 throw new Error(
                     'Matching credential not found on the server.'
-                )
-            }
-
-            const userFromDB: UserRecord | null=
-                await usersRepository.findByUserId(credentialFromDB.userId)
-            if (!userFromDB) {
-                throw new Error(
-                    'User not found.'
                 )
             }
 

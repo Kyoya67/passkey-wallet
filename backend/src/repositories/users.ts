@@ -2,33 +2,32 @@ import type { QueryResultRow } from 'pg'
 import { pool } from '../db.js'
 
 export type UserRecord = {
-    userId: string
-    userName: string
+  userId: string
+  userName: string
 }
 
 type UserRow = QueryResultRow & UserRecord
 
 export const usersRepository = {
-    async create(input: UserRecord): Promise<void> {
-        await pool.query<UserRow>(
-            `
-                INSERT INTO users (
-                    user_id,
-                    user_name
-                )
-                VALUES ($1, $2)
-            `,
-            [input.userId, input.userName]
+  async create(input: UserRecord): Promise<void> {
+    await pool.query(
+      `
+        INSERT INTO users (
+          user_id,
+          user_name
         )
-    },
+        VALUES ($1, $2)
+      `,
+      [input.userId, input.userName]
+    )
+  },
 
-    async findByUserId(userId: string): Promise<UserRecord | null> {
+  async findByUserId(userId: string): Promise<UserRecord | null> {
     const result = await pool.query<UserRow>(
       `
         SELECT
-          user_id,
-          user_name,
-          created_at,
+          user_id AS "userId",
+          user_name AS "userName"
         FROM users
         WHERE user_id = $1
       `,
@@ -42,9 +41,8 @@ export const usersRepository = {
     const result = await pool.query<UserRow>(
       `
         SELECT
-          user_id,
-          user_name,
-          created_at
+          user_id AS "userId",
+          user_name AS "userName"
         FROM users
         WHERE user_name = $1
       `,
