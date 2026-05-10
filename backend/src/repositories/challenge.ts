@@ -5,7 +5,6 @@ export type ChallengePurpose = 'registration' | 'authentication'
 export type RegistrationChallengeRecord = {
   sessionId: string
   challenge: string
-  purpose: 'registration'
   userId: string
   userName: string
   createdAt?: Date
@@ -14,7 +13,6 @@ export type RegistrationChallengeRecord = {
 export type AuthenticationChallengeRecord = {
   sessionId: string
   challenge: string
-  purpose: 'authentication'
   createdAt?: Date
 }
 
@@ -65,23 +63,14 @@ async function getFromMemory(key: string): Promise<ChallengeRecord | null> {
 }
 
 export const challengeRepository = {
-  async upsert(record: ChallengeRecord): Promise<ChallengeRecord | null> {
-    if (record.purpose === 'registration') {
-      return this.upsertRegistration(record)
-    }
-
-    return this.upsertAuthentication(record)
-  },
-
   async upsertRegistration(
-    { sessionId, userId, userName, challenge }: Omit<RegistrationChallengeRecord, 'purpose' | 'createdAt'>
+    { sessionId, userId, userName, challenge }: Omit<RegistrationChallengeRecord, 'createdAt'>
   ): Promise<RegistrationChallengeRecord | null> {
     const record: RegistrationChallengeRecord = {
       sessionId,
       userId,
       userName,
       challenge,
-      purpose: 'registration',
       createdAt: new Date(),
     }
 
@@ -101,12 +90,11 @@ export const challengeRepository = {
   },
 
   async upsertAuthentication(
-    { sessionId, challenge }: Omit<AuthenticationChallengeRecord, 'purpose' | 'createdAt'>
+    { sessionId, challenge }: Omit<AuthenticationChallengeRecord, 'createdAt'>
   ): Promise<AuthenticationChallengeRecord | null> {
     const record: AuthenticationChallengeRecord = {
       sessionId,
       challenge,
-      purpose: 'authentication',
       createdAt: new Date(),
     }
 
@@ -153,17 +141,6 @@ export const challengeRepository = {
     const value = await client.get(key)
     if (!value) return null
     return JSON.parse(value) as AuthenticationChallengeRecord
-  },
-
-  async findBySessionId(
-    sessionId: string,
-    purpose: ChallengePurpose = 'registration'
-  ): Promise<ChallengeRecord | null> {
-    if (purpose === 'registration') {
-      return this.findRegistrationBySessionId(sessionId)
-    }
-
-    return this.findAuthenticationBySessionId(sessionId)
   },
 
   async deleteBySessionId(sessionId: string, purpose: ChallengePurpose) {
