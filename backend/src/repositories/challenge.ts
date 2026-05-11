@@ -140,7 +140,7 @@ export const challengeRepository = {
     const client = getRedisClient()
     const value = await client.get(key)
     if (!value) return null
-    return JSON.parse(value) as AuthenticationChallengeRecord 
+    return JSON.parse(value) as AuthenticationChallengeRecord
   },
 
   async deleteBySessionId(sessionId: string, purpose: ChallengePurpose) {
